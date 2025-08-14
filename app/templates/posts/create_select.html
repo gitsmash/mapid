@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-4">Create a New Post</h1>
+        <p class="text-lg text-gray-600">Choose what type of post you'd like to create for your community</p>
+    </div>
+    
+    <!-- Category Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for category in categories %}
+        <a href="{{ url_for('posts.create_post', category=category.name) }}" 
+           class="group block p-6 bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-gray-200 hover:border-gray-300">
+            
+            <!-- Category Header -->
+            <div class="flex items-center mb-4">
+                <div class="w-12 h-12 rounded-lg flex items-center justify-center text-2xl mr-4"
+                     style="background-color: {{ category.color_hex }}20;">
+                    {{ category.emoji }}
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 group-hover:text-gray-700">
+                        {{ category.display_name }}
+                    </h3>
+                    <p class="text-sm text-gray-500">
+                        Expires in {{ category.default_expiration_days }} day{{ 's' if category.default_expiration_days != 1 else '' }}
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Category Description -->
+            <p class="text-gray-600 text-sm mb-4 line-clamp-3">
+                {{ category.description }}
+            </p>
+            
+            <!-- Category Features -->
+            <div class="flex flex-wrap gap-2">
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-700">
+                    📷 Up to {{ category.max_photos }} photos
+                </span>
+                {% if category.requires_time %}
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-700">
+                    ⏰ Time required
+                </span>
+                {% endif %}
+                {% if category.requires_price %}
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-700">
+                    💰 Price required
+                </span>
+                {% endif %}
+            </div>
+            
+            <!-- Hover Arrow -->
+            <div class="mt-4 flex items-center text-sm font-medium group-hover:text-gray-700" 
+                 style="color: {{ category.color_hex }};">
+                Create {{ category.display_name }} Post
+                <svg class="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" 
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    
+    <!-- Help Section -->
+    <div class="mt-12 text-center">
+        <div class="bg-blue-50 rounded-lg p-6 max-w-2xl mx-auto">
+            <h3 class="text-lg font-semibold text-blue-900 mb-2">Need help choosing?</h3>
+            <p class="text-blue-700 text-sm mb-4">
+                Each post type is designed for specific community activities. Choose the one that best fits what you want to share with your neighbors.
+            </p>
+            <div class="flex flex-wrap gap-2 justify-center text-xs">
+                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">🏠 Selling items from home</span>
+                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">🍽️ Restaurant deals</span>
+                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">❓ Need assistance</span>
+                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">💰 Individual items for sale</span>
+                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">🛍️ Business promotions</span>
+                <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full">📚 Borrowing items</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
