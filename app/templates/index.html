@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Hero Section -->
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">
+            Welcome to {{ APP_NAME }}
+        </h1>
+        <p class="text-xl text-gray-600 mb-8">
+            Your neighborhood community platform - discover local events, help neighbors, and build connections
+        </p>
+        
+        {% if not current_user.is_authenticated %}
+            <div class="space-x-4">
+                <a href="{{ url_for('auth.login') }}" 
+                   class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-block">
+                    Get Started
+                </a>
+                <a href="{{ url_for('main.about') }}" 
+                   class="bg-gray-200 text-gray-800 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors inline-block">
+                    Learn More
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Post Type Categories -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-garage-sale">
+            <div class="flex items-center mb-4">
+                <span class="text-3xl mr-3">🏠</span>
+                <h3 class="text-lg font-semibold">Garage Sales</h3>
+            </div>
+            <p class="text-gray-600">Find great deals on furniture, clothes, books, and household items</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-restaurant">
+            <div class="flex items-center mb-4">
+                <span class="text-3xl mr-3">🍽️</span>
+                <h3 class="text-lg font-semibold">Restaurant Specials</h3>
+            </div>
+            <p class="text-gray-600">Discover daily specials and deals from local restaurants</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-help-needed">
+            <div class="flex items-center mb-4">
+                <span class="text-3xl mr-3">❓</span>
+                <h3 class="text-lg font-semibold">Help Needed</h3>
+            </div>
+            <p class="text-gray-600">Request assistance from neighbors or offer help to others</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-for-sale">
+            <div class="flex items-center mb-4">
+                <span class="text-3xl mr-3">💰</span>
+                <h3 class="text-lg font-semibold">For Sale</h3>
+            </div>
+            <p class="text-gray-600">Buy and sell individual items with your neighbors</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-shop-sale">
+            <div class="flex items-center mb-4">
+                <span class="text-3xl mr-3">🛍️</span>
+                <h3 class="text-lg font-semibold">Shop Sales</h3>
+            </div>
+            <p class="text-gray-600">Local business promotions and special events</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-borrow">
+            <div class="flex items-center mb-4">
+                <span class="text-3xl mr-3">📚</span>
+                <h3 class="text-lg font-semibold">Borrow</h3>
+            </div>
+            <p class="text-gray-600">Share tools, books, and items with your community</p>
+        </div>
+    </div>
+
+    <!-- Map Preview Section -->
+    <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Explore Your Neighborhood</h2>
+        <div id="preview-map" class="h-64 rounded-lg bg-gray-200 flex items-center justify-center">
+            <p class="text-gray-500">Interactive map will be displayed here</p>
+        </div>
+        <div class="mt-4 text-center">
+            <a href="{{ url_for('maps.map_view') }}" 
+               class="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                View Full Map
+            </a>
+        </div>
+    </div>
+
+    <!-- Getting Started -->
+    {% if current_user.is_authenticated %}
+        <div class="bg-blue-50 rounded-lg p-6">
+            <h2 class="text-xl font-bold text-blue-900 mb-4">Ready to get started?</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <a href="{{ url_for('posts.create_post') }}" 
+                   class="bg-blue-600 text-white text-center py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                    Create Your First Post
+                </a>
+                <a href="{{ url_for('maps.map_view') }}" 
+                   class="bg-gray-600 text-white text-center py-3 px-4 rounded-lg hover:bg-gray-700 transition-colors">
+                    Browse the Map
+                </a>
+                <a href="{{ url_for('posts.list_posts') }}" 
+                   class="bg-green-600 text-white text-center py-3 px-4 rounded-lg hover:bg-green-700 transition-colors">
+                    View Recent Posts
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
