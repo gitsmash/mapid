@@ -1,0 +1,700 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} - Mapid{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin="" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+<style>
+    /* Custom marker styles */
+    .custom-marker {
+        background: transparent !important;
+        border: none !important;
+    }
+    
+    /* Enhanced popup styling */
+    .leaflet-popup-content-wrapper {
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        border: none;
+    }
+    
+    .leaflet-popup-tip {
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    /* Cluster marker enhancements */
+    .marker-cluster {
+        background: transparent !important;
+        border: none !important;
+    }
+    
+    .marker-cluster div {
+        border-radius: 50% !important;
+    }
+    
+    /* User location marker animation */
+    .user-location-marker {
+        background: transparent !important;
+        border: none !important;
+    }
+    
+    /* Loading states */
+    .map-loading {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+    }
+    
+    /* Hover effects for interactive elements */
+    .marker-hover:hover {
+        transform: scale(1.1);
+        z-index: 1000;
+    }
+    
+    /* Custom scrollbar for long popups */
+    .leaflet-popup-content::-webkit-scrollbar {
+        width: 4px;
+    }
+    
+    .leaflet-popup-content::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 2px;
+    }
+    
+    .leaflet-popup-content::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 2px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="h-screen flex flex-col">
+    <!-- Map Header -->
+    <div class="bg-white border-b border-gray-200 px-4 py-3">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <h1 class="text-2xl font-bold text-gray-900">
+                    <svg class="w-8 h-8 inline-block mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                    Community Map
+                </h1>
+            </div>
+            
+            <!-- Map Controls -->
+            <div class="flex items-center space-x-4">
+                <!-- Category Filter -->
+                <div class="relative">
+                    <select id="categoryFilter" class="bg-white border border-gray-300 rounded-lg px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Categories</option>
+                        <option value="garage_sale" class="text-red-600">🏠 Garage Sales</option>
+                        <option value="restaurant" class="text-blue-600">🍽️ Restaurant Specials</option>
+                        <option value="help_needed" class="text-green-600">❓ Help Needed</option>
+                        <option value="for_sale" class="text-orange-600">💰 For Sale</option>
+                        <option value="shop_sale" class="text-purple-600">🛍️ Shop Sales</option>
+                        <option value="borrow" class="text-pink-600">📚 Borrow</option>
+                        <option value="community_event" class="text-amber-600">🎉 Community Events</option>
+                        <option value="lost_found" class="text-cyan-600">🔍 Lost & Found</option>
+                    </select>
+                </div>
+                
+                <!-- View Toggle -->
+                <div class="flex bg-gray-100 rounded-lg p-1">
+                    <button id="mapViewBtn" class="px-3 py-1 text-sm font-medium rounded-md bg-white text-gray-900 shadow-sm">
+                        Map
+                    </button>
+                    <button id="listViewBtn" class="px-3 py-1 text-sm font-medium rounded-md text-gray-500 hover:text-gray-900">
+                        List
+                    </button>
+                </div>
+                
+                <!-- Create Post Button -->
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('posts.create_post') }}" 
+                   class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Create Post
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Map Container -->
+    <div class="flex-1 relative">
+        <div id="map" class="w-full h-full"></div>
+        
+        <!-- Loading Overlay -->
+        <div id="mapLoading" class="absolute inset-0 bg-gray-100 flex items-center justify-center">
+            <div class="text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p class="text-gray-600">Loading map and posts...</p>
+            </div>
+        </div>
+        
+        <!-- No Posts Message -->
+        <div id="noPostsMessage" class="absolute inset-0 bg-white bg-opacity-90 hidden flex items-center justify-center">
+            <div class="text-center max-w-md mx-auto px-6">
+                <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No posts found in this area</h3>
+                <p class="text-gray-600 mb-4">Be the first to share something with your community!</p>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('posts.create_post') }}" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    Create First Post
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Post Details Sidebar (hidden by default) -->
+    <div id="postSidebar" class="absolute top-0 right-0 h-full w-96 bg-white shadow-xl transform translate-x-full transition-transform duration-300 ease-in-out z-10">
+        <div class="flex flex-col h-full">
+            <!-- Sidebar Header -->
+            <div class="flex items-center justify-between p-4 border-b border-gray-200">
+                <h2 class="text-lg font-semibold text-gray-900">Post Details</h2>
+                <button id="closeSidebar" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- Sidebar Content -->
+            <div id="sidebarContent" class="flex-1 overflow-y-auto p-4">
+                <!-- Post details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+
+<script>
+class MapInterface {
+    constructor() {
+        this.map = null;
+        this.markerClusterGroup = null;
+        this.currentMarkers = [];
+        this.currentFilter = '';
+        this.lastBounds = null;
+        this.isLoading = false;
+        this.categoryCounts = {};
+        
+        this.init();
+    }
+    
+    init() {
+        this.initMap();
+        this.initEventListeners();
+        this.getUserLocation();
+    }
+    
+    initMap() {
+        // Initialize map centered on San Francisco (default location)
+        this.map = L.map('map').setView([37.7749, -122.4194], 13);
+        
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            maxZoom: 19
+        }).addTo(this.map);
+        
+        // Initialize marker cluster group with custom styling
+        this.markerClusterGroup = L.markerClusterGroup({
+            chunkedLoading: true,
+            spiderfyOnMaxZoom: false,
+            showCoverageOnHover: false,
+            zoomToBoundsOnClick: true,
+            maxClusterRadius: 50,
+            iconCreateFunction: (cluster) => {
+                const childCount = cluster.getChildCount();
+                let className = 'marker-cluster-';
+                let size = 40;
+                
+                if (childCount < 10) {
+                    className += 'small';
+                    size = 30;
+                } else if (childCount < 100) {
+                    className += 'medium';
+                    size = 40;
+                } else {
+                    className += 'large';
+                    size = 50;
+                }
+                
+                return new L.DivIcon({
+                    html: `<div style="
+                        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+                        color: white;
+                        border-radius: 50%;
+                        width: ${size}px;
+                        height: ${size}px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-weight: bold;
+                        font-size: ${size > 35 ? '14px' : '12px'};
+                        border: 3px solid white;
+                        box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                    ">${childCount}</div>`,
+                    className: 'marker-cluster ' + className,
+                    iconSize: new L.Point(size, size)
+                });
+            }
+        });
+        
+        this.map.addLayer(this.markerClusterGroup);
+        
+        // Add map event listeners
+        this.map.on('moveend', () => {
+            this.loadPostsInView();
+        });
+        
+        this.map.on('zoomend', () => {
+            this.loadPostsInView();
+        });
+    }
+    
+    getUserLocation() {
+        // Try to get user's current location
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    this.map.setView([lat, lng], 15);
+                    
+                    // Add a marker for user's location
+                    L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: 'user-location-marker',
+                            html: `<div style="
+                                background: #3b82f6;
+                                width: 20px;
+                                height: 20px;
+                                border-radius: 50%;
+                                border: 3px solid white;
+                                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                                position: relative;
+                            ">
+                                <div style="
+                                    background: #3b82f6;
+                                    width: 40px;
+                                    height: 40px;
+                                    border-radius: 50%;
+                                    opacity: 0.3;
+                                    position: absolute;
+                                    top: -10px;
+                                    left: -10px;
+                                    animation: pulse 2s infinite;
+                                "></div>
+                            </div>
+                            <style>
+                                @keyframes pulse {
+                                    0% { transform: scale(0.5); opacity: 0.5; }
+                                    50% { transform: scale(1); opacity: 0.3; }
+                                    100% { transform: scale(1.2); opacity: 0; }
+                                }
+                            </style>`,
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        })
+                    }).addTo(this.map)
+                      .bindPopup('📍 Your Location');
+                    
+                    this.loadPostsInView();
+                },
+                (error) => {
+                    console.log('Geolocation not available:', error);
+                    this.hideLoading();
+                    this.loadPostsInView();
+                }
+            );
+        } else {
+            this.hideLoading();
+            this.loadPostsInView();
+        }
+    }
+    
+    initEventListeners() {
+        // Category filter
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', (e) => {
+                this.currentFilter = e.target.value;
+                this.loadPostsInView();
+            });
+        }
+        
+        // View toggles
+        const mapViewBtn = document.getElementById('mapViewBtn');
+        const listViewBtn = document.getElementById('listViewBtn');
+        const closeSidebar = document.getElementById('closeSidebar');
+        
+        if (mapViewBtn) {
+            mapViewBtn.addEventListener('click', () => this.showMapView());
+        }
+        
+        if (listViewBtn) {
+            listViewBtn.addEventListener('click', () => this.showListView());
+        }
+        
+        if (closeSidebar) {
+            closeSidebar.addEventListener('click', () => this.closeSidebar());
+        }
+    }
+    
+    async loadPostsInView() {
+        if (this.isLoading) return;
+        
+        const bounds = this.map.getBounds();
+        const north = bounds.getNorth();
+        const south = bounds.getSouth();
+        const east = bounds.getEast();
+        const west = bounds.getWest();
+        
+        // Don't reload if bounds haven't changed significantly
+        if (this.lastBounds && 
+            Math.abs(this.lastBounds.north - north) < 0.001 &&
+            Math.abs(this.lastBounds.south - south) < 0.001 &&
+            Math.abs(this.lastBounds.east - east) < 0.001 &&
+            Math.abs(this.lastBounds.west - west) < 0.001) {
+            return;
+        }
+        
+        this.lastBounds = { north, south, east, west };
+        this.setLoading(true);
+        
+        try {
+            const params = new URLSearchParams({
+                north: north.toString(),
+                south: south.toString(),
+                east: east.toString(),
+                west: west.toString(),
+                limit: '100'
+            });
+            
+            if (this.currentFilter) {
+                params.append('category', this.currentFilter);
+            }
+            
+            const response = await fetch(`/maps/api/posts?${params}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.updateMap(data.posts);
+                this.updatePostCounts(data.posts);
+            } else {
+                console.error('Error loading posts:', data.error);
+            }
+        } catch (error) {
+            console.error('Network error loading posts:', error);
+        } finally {
+            this.setLoading(false);
+        }
+    }
+    
+    updateMap(posts) {
+        // Clear existing markers
+        this.markerClusterGroup.clearLayers();
+        this.currentMarkers = [];
+        
+        if (posts.length === 0) {
+            this.showNoPostsMessage();
+            return;
+        }
+        
+        this.hideNoPostsMessage();
+        
+        // Add new markers
+        posts.forEach(post => {
+            const marker = this.createPostMarker(post);
+            if (marker) {
+                this.markerClusterGroup.addLayer(marker);
+                this.currentMarkers.push(marker);
+            }
+        });
+    }
+    
+    createPostMarker(post) {
+        if (!post.latitude || !post.longitude) {
+            return null;
+        }
+        
+        // Category-specific colors and emojis
+        const categoryStyles = {
+            garage_sale: { color: '#f59e0b', emoji: '🏠' },
+            restaurant: { color: '#ef4444', emoji: '🍽️' },
+            help_needed: { color: '#8b5cf6', emoji: '🆘' },
+            for_sale: { color: '#10b981', emoji: '💰' },
+            shop_sale: { color: '#3b82f6', emoji: '🏪' },
+            borrow: { color: '#f97316', emoji: '🤝' },
+            community: { color: '#6b7280', emoji: '👥' },
+            event: { color: '#ec4899', emoji: '🎉' }
+        };
+        
+        const style = categoryStyles[post.category] || categoryStyles.community;
+        const emoji = post.emoji || style.emoji;
+        const color = post.color || style.color;
+        
+        // Create custom marker icon
+        const icon = L.divIcon({
+            className: `marker-${post.category}`,
+            html: `<div style="
+                background: ${color};
+                width: 35px;
+                height: 35px;
+                border-radius: 50%;
+                border: 3px solid white;
+                box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 16px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            " onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">${emoji}</div>`,
+            iconSize: [35, 35],
+            iconAnchor: [17, 17],
+            popupAnchor: [0, -17]
+        });
+        
+        const marker = L.marker([post.latitude, post.longitude], { icon });
+        
+        // Create enhanced popup content
+        const popupContent = this.createPopupContent(post);
+        marker.bindPopup(popupContent, {
+            className: 'custom-popup',
+            maxWidth: 320,
+            closeButton: true
+        });
+        
+        return marker;
+    }
+    
+    createPopupContent(post) {
+        const expiresAt = post.expires_at ? new Date(post.expires_at) : null;
+        const timeLeft = expiresAt ? this.getTimeUntilExpiration(expiresAt) : null;
+        
+        let categorySpecific = '';
+        if (post.price) {
+            categorySpecific = `<div class="text-green-600 font-semibold text-lg">$${post.price}</div>`;
+        } else if (post.special_item) {
+            categorySpecific = `<div class="text-blue-600 font-medium">${post.special_item}</div>`;
+        } else if (post.start_time) {
+            categorySpecific = `<div class="text-purple-600 font-medium">Starts: ${post.start_time}</div>`;
+        } else if (post.urgency_level) {
+            const urgencyColors = {
+                low: 'text-green-600',
+                medium: 'text-yellow-600', 
+                high: 'text-red-600'
+            };
+            categorySpecific = `<div class="${urgencyColors[post.urgency_level] || 'text-gray-600'} font-medium">
+                Urgency: ${post.urgency_level.charAt(0).toUpperCase() + post.urgency_level.slice(1)}
+            </div>`;
+        }
+        
+        return `
+            <div style="min-width: 280px; font-family: system-ui, -apple-system, sans-serif;">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb;">
+                    <span style="font-size: 20px;">${post.emoji}</span>
+                    <div style="font-weight: 600; color: #1f2937; flex: 1; font-size: 16px;">${post.title}</div>
+                </div>
+                
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; line-height: 1.4;">
+                    <div style="margin-bottom: 4px;">📍 ${post.neighborhood || post.city || 'Unknown location'}</div>
+                    ${post.distance ? `<div style="margin-bottom: 4px;">📏 ${post.distance}</div>` : ''}
+                    ${timeLeft ? `<div style="margin-bottom: 4px;">⏰ ${timeLeft}</div>` : ''}
+                    <div>👤 ${post.user_display_name}</div>
+                </div>
+                
+                ${categorySpecific}
+                
+                <div style="font-size: 14px; color: #4b5563; margin: 12px 0; line-height: 1.4;">
+                    ${post.description}
+                </div>
+                
+                <div style="display: flex; gap: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                    <a href="/posts/${post.id}" style="
+                        background: #3b82f6;
+                        color: white;
+                        padding: 6px 12px;
+                        border-radius: 6px;
+                        font-size: 12px;
+                        font-weight: 500;
+                        text-decoration: none;
+                        text-align: center;
+                        transition: all 0.2s;
+                        flex: 1;
+                    " onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+                        View Details
+                    </a>
+                    <button onclick="sharePost(${post.id})" style="
+                        background: #f3f4f6;
+                        color: #6b7280;
+                        padding: 6px 12px;
+                        border: none;
+                        border-radius: 6px;
+                        font-size: 12px;
+                        font-weight: 500;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    " onmouseover="this.style.background='#e5e7eb'; this.style.color='#4b5563'" onmouseout="this.style.background='#f3f4f6'; this.style.color='#6b7280'">
+                        Share
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    getTimeUntilExpiration(expiresAt) {
+        const now = new Date();
+        const diff = expiresAt - now;
+        
+        if (diff <= 0) {
+            return 'Expired';
+        }
+        
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const days = Math.floor(hours / 24);
+        
+        if (days > 0) {
+            return `${days} day${days === 1 ? '' : 's'} left`;
+        } else if (hours > 0) {
+            return `${hours} hour${hours === 1 ? '' : 's'} left`;
+        } else {
+            const minutes = Math.floor(diff / (1000 * 60));
+            return `${minutes} minute${minutes === 1 ? '' : 's'} left`;
+        }
+    }
+    
+    updatePostCounts(posts) {
+        // This would update category filter counts if we had those elements
+        console.log(`Loaded ${posts.length} posts in viewport`);
+    }
+    
+    setLoading(loading) {
+        this.isLoading = loading;
+        const loadingElement = document.getElementById('mapLoading');
+        if (loadingElement) {
+            if (loading) {
+                loadingElement.classList.remove('hidden');
+            } else {
+                loadingElement.classList.add('hidden');
+            }
+        }
+    }
+    
+    showNoPostsMessage() {
+        const element = document.getElementById('noPostsMessage');
+        if (element) {
+            element.classList.remove('hidden');
+        }
+    }
+    
+    hideNoPostsMessage() {
+        const element = document.getElementById('noPostsMessage');
+        if (element) {
+            element.classList.add('hidden');
+        }
+    }
+    
+    showMapView() {
+        const mapViewBtn = document.getElementById('mapViewBtn');
+        const listViewBtn = document.getElementById('listViewBtn');
+        
+        if (mapViewBtn && listViewBtn) {
+            mapViewBtn.classList.add('bg-white', 'text-gray-900', 'shadow-sm');
+            mapViewBtn.classList.remove('text-gray-500');
+            listViewBtn.classList.remove('bg-white', 'text-gray-900', 'shadow-sm');
+            listViewBtn.classList.add('text-gray-500');
+        }
+        
+        if (this.currentMarkers.length === 0) {
+            this.loadPostsInView();
+        }
+    }
+    
+    showListView() {
+        window.location.href = '/posts/';
+    }
+    
+    closeSidebar() {
+        const sidebar = document.getElementById('postSidebar');
+        if (sidebar) {
+            sidebar.classList.add('translate-x-full');
+        }
+    }
+    
+    showPostDetails(postId) {
+        const sidebarContent = document.getElementById('sidebarContent');
+        const postSidebar = document.getElementById('postSidebar');
+        
+        if (sidebarContent && postSidebar) {
+            sidebarContent.innerHTML = '<div class="text-center py-8"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div></div>';
+            postSidebar.classList.remove('translate-x-full');
+            
+            fetch(`/posts/${postId}`)
+                .then(response => response.text())
+                .then(html => {
+                    sidebarContent.innerHTML = html;
+                })
+                .catch(error => {
+                    sidebarContent.innerHTML = '<div class="text-red-600">Error loading post details</div>';
+                });
+        }
+    }
+}
+
+// Global functions
+function sharePost(postId) {
+    if (navigator.share) {
+        navigator.share({
+            title: 'Check out this post on Mapid',
+            url: `${window.location.origin}/posts/${postId}`
+        });
+    } else {
+        // Fallback: copy to clipboard
+        const url = `${window.location.origin}/posts/${postId}`;
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Post link copied to clipboard!');
+        });
+    }
+}
+
+function showPostDetails(postId) {
+    if (window.mapInterface) {
+        window.mapInterface.showPostDetails(postId);
+    }
+}
+
+// Initialize map when page loads
+document.addEventListener('DOMContentLoaded', () => {
+    window.mapInterface = new MapInterface();
+});
+</script>
+
+{% endblock %}
